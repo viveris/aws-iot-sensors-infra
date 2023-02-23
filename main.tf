@@ -89,7 +89,7 @@ resource "aws_iam_role_policy_attachment" "attach_writer_policy_to_role" {
 }
 
 resource "aws_iot_topic_rule" "write_to_table" {
-  name        = "SensorMessagesToDynamoDbTable"
+  name        = "SensorMessagesToDynamoDbTable_${random_id.env_id.hex}"
   description = "Writes sensor measurements published on specific topics to the measurements DynamoDB table"
   enabled     = true
   sql         = "SELECT temperature, humidity, barometer, wind.velocity as wind_velocity, wind.bearing as wind_bearing FROM 'device/+/data'"
