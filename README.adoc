@@ -1,0 +1,22 @@
+= aws-iot-sensors-infra
+
+Terraform IoC for the AWS IoT Sensors project.
+
+
+== Overview
+
+This project creates a DynamoDB table and a IoT rule to write to the table data published by IoT devices on the `/devices/+/data` topics.
+
+
+== Usage
+
+Clone the repository and `cd` into it.
+
+To deploy the resources, execute:
+
+....
+$ terraform init
+$ terraform apply
+....
+
+NOTE: The command above only works if you have already configured your AWS CLI with `aws configure`.
