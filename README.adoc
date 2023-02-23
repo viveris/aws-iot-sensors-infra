@@ -19,4 +19,12 @@ $ terraform init
 $ terraform apply
 ....
 
+Type "yes" when you are asked to accept the solution.
+
 NOTE: The command above only works if you have already configured your AWS CLI with `aws configure`.
+
+To delete the resources, run:
+
+....
+$ terraform destroy
+....
