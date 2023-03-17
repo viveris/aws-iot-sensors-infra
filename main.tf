@@ -19,40 +19,34 @@ resource "random_id" "env_id" {
   byte_length = 4
 }
 
-resource "aws_dynamodb_table" "sensor_measurements_table" {
-  name         = "${var.sensors_measurements_table_basename}-${random_id.env_id.hex}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "timestamp"
-  range_key    = "device"
 
-  attribute {
-    name = "timestamp"
-    type = "N"
-  }
+##################
+# Logging bucket #
+##################
 
-  attribute {
-    name = "device"
-    type = "S"
-  }
+resource "aws_s3_bucket" "logs" {
+  bucket = "iot-sensors-logs-${random_id.env_id.hex}"
 
   tags = {
     Project = var.project_name
   }
 }
 
-resource "aws_iam_policy" "write_to_table" {
-  name        = "${var.sensors_measurements_table_basename}PutItem-${random_id.env_id.hex}"
-  description = "Allow to put items in the DynamoDB table for sensors measurements"
+# Create IoT service role with a policy allowing to write to the bucket.
+
+resource "aws_iam_policy" "write_logs" {
+  name        = "IotSensorsWriteLogs-${random_id.env_id.hex}"
+  description = "Allow write access to the logs S3 bucket."
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Action = [
-          "dynamodb:PutItem",
+          "s3:PutObject",
         ]
         Effect   = "Allow"
-        Resource = aws_dynamodb_table.sensor_measurements_table.arn
+        Resource = "${aws_s3_bucket.logs.arn}/*"
       },
     ]
   })
@@ -62,8 +56,8 @@ resource "aws_iam_policy" "write_to_table" {
   }
 }
 
-resource "aws_iam_role" "sensor_measurements_table_writer" {
-  name = "${var.sensors_measurements_table_basename}Writer-${random_id.env_id.hex}"
+resource "aws_iam_role" "iot_sensors_logger" {
+  name = "IotSensorsLogger-${random_id.env_id.hex}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -83,38 +77,42 @@ resource "aws_iam_role" "sensor_measurements_table_writer" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "attach_writer_policy_to_role" {
-  role       = aws_iam_role.sensor_measurements_table_writer.name
-  policy_arn = aws_iam_policy.write_to_table.arn
+resource "aws_iam_role_policy_attachment" "attach_write_logs_to_iot_sensors_logger" {
+  role       = aws_iam_role.iot_sensors_logger.name
+  policy_arn = aws_iam_policy.write_logs.arn
 }
 
-resource "aws_iot_topic_rule" "write_to_table" {
-  name        = "SensorMessagesToDynamoDbTable_${random_id.env_id.hex}"
-  description = "Writes sensor measurements published on specific topics to the measurements DynamoDB table"
-  enabled     = true
-  sql         = "SELECT temperature, humidity, barometer, wind.velocity as wind_velocity, wind.bearing as wind_bearing FROM 'device/+/data'"
-  sql_version = "2016-03-23"
 
-  dynamodb {
-    hash_key_field = "timestamp"
-    hash_key_type  = "NUMBER"
-    hash_key_value = "$${timestamp()}"
+###############################################################
+# Resources to record motion sensors data to a DynamoDB table #
+###############################################################
 
-    range_key_field = "device"
-    range_key_type  = "STRING"
-    # We get the device ID from MQTT topic as there is no way to get it from a SQL function.
-    range_key_value = "$${cast(topic(2) AS DECIMAL)}"
+module "motion_table_recording" {
+  source = "./table-recording"
 
-    payload_field = "payload"
+  project_name  = var.project_name
+  region        = var.region
+  random_suffix = random_id.env_id.hex
 
-    operation = "INSERT"
+  table_basename              = "MotionMeasurementsTable"
+  topic_rule_sql_query        = "SELECT acceleration_mG.x as acceleration_mG_x, acceleration_mG.y as acceleration_mG_y, acceleration_mG.z as acceleration_mG_z, gyro_mDPS.x as gyro_mDPS_x, gyro_mDPS.y as gyro_mDPS_y, gyro_mDPS.z as gyro_mDPS_z, magnetometer_mGauss.x as magnetometer_mGauss_x, magnetometer_mGauss.y as magnetometer_mGauss_y, magnetometer_mGauss.z as magnetometer_mGauss_z FROM '+/motion_sensor_data'"
+  topic_rule_device_value     = "$${topic(1)}"
+  logs_bucket_name            = aws_s3_bucket.logs.id
+  iot_sensors_logger_role_arn = aws_iam_role.iot_sensors_logger.arn
+}
 
-    role_arn = aws_iam_role.sensor_measurements_table_writer.arn
 
-    table_name = aws_dynamodb_table.sensor_measurements_table.name
-  }
+###############
+# API Gateway #
+###############
 
-  tags = {
-    Project = var.project_name
-  }
+module "api_gateway" {
+  source = "./api-gateway"
+
+  project_name  = var.project_name
+  region        = var.region
+  random_suffix = random_id.env_id.hex
+
+  motion_table_name = module.motion_table_recording.sensors_table_name
+  motion_table_arn  = module.motion_table_recording.sensors_table_arn
 }
