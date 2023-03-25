@@ -116,3 +116,16 @@ module "api_gateway" {
   motion_table_name = module.motion_table_recording.sensors_table_name
   motion_table_arn  = module.motion_table_recording.sensors_table_arn
 }
+
+
+#########################
+# Static website bucket #
+#########################
+
+module "static_web" {
+  source = "./static-web"
+
+  project_name  = var.project_name
+  region        = var.region
+  random_suffix = random_id.env_id.hex
+}
