@@ -28,6 +28,16 @@ variable "topic_rule_device_value" {
   type        = string
 }
 
+variable "record_item_lambda_src_path" {
+  description = "Path Lambda function source directory."
+  type        = string
+}
+
+variable "dynamodb_item_ttl" {
+  description = "TTL for items recorded in DynamoDB (s).  Items are moved to S3 after their TTL expires."
+  type        = number
+}
+
 variable "logs_bucket_name" {
   description = "Name of S3 bucket in which to put logs."
   type        = string

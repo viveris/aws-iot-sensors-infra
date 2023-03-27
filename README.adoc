@@ -1,16 +1,45 @@
 = aws-iot-sensors-infra
+:source-highlighter: highlight.js
+:source-language: terraform
+
 
 Terraform IoC for the AWS IoT Sensors project.
 
 
 == Overview
 
-This project creates a DynamoDB table and a IoT rule to write to the table data published by IoT devices on the `/devices/+/data` topics.
+This project creates a serverless architecture that ingests IoT sensors data from STM32 cards.  Data is processed by IoT Core, an IoT Rule and a Lambda function.  The Lambda function records data from motion sensors received on specific MQTT topics (`+/motion_sensor_data`, where `+` represents a device ID).  An API then allows to query over HTTPS the latest records for a device.  The API can be used by a static website, which can be deployed in an S3 Bucket provided by the infrastructure.
 
 
 == Usage
 
 Clone the repository and `cd` into it.
+
+
+=== Configure the Lambda functions
+
+IMPORTANT: The Lambda configuration requires to use Node.js 18.  You can use `nvm` to easily switch between Node versions.
+
+In each directory of directory _lambda_, run:
+
+....
+$ npm install
+....
+
+
+=== Configure environment
+
+Create a _terraform.tfvars_ file at the root of the repository.  Edit it to alter the default configuration.  The list of variables can be found in _variables.tf_.
+
+For example, to change the items TTL in DynamoDB to seven days, add this line to _terraform.tfvars_:
+
+[source,tf]
+----
+dynamodb_item_ttl = 604800
+----
+
+
+=== Deployment
 
 To deploy the resources, execute:
 
@@ -28,3 +57,12 @@ To delete the resources, run:
 ....
 $ terraform destroy
 ....
+
+TIP: The architecture may induce small storage, data ingestion and retrieval costs.  It is good to destroy all resources when they are not needed anymore.
+
+TIP: In case of errors relted to non-empty buckets, you can delete the data in the buckets (`aws s3 rm --recursive s3://BUCKET_NAME`) and run `terraform destroy` again.
+
+
+=== Next steps
+
+This architecture comprises an S3 Bucket that can hold a static website.  You may want to upload static files in this bucket for a front app that queries the API.

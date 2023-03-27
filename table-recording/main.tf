@@ -18,6 +18,11 @@ resource "aws_dynamodb_table" "sensors_table" {
     type = "N"
   }
 
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
   tags = {
     Project = var.project_name
   }
@@ -45,6 +50,38 @@ resource "aws_iam_policy" "write_to_table" {
   }
 }
 
+
+###################################################
+# Lambda function that writes an item to DynamoDB #
+###################################################
+
+data "archive_file" "lambda" {
+  type        = "zip"
+  source_dir = var.record_item_lambda_src_path
+  output_path = "lambda_function_${var.table_basename}.zip"
+}
+
+resource "aws_lambda_function" "record_item" {
+  filename      = "lambda_function_${var.table_basename}.zip"
+  function_name = "SensorsMessagesTo${var.table_basename}TableLambda"
+  role          = aws_iam_role.sensors_table_writer.arn
+  handler       = "index.handler"
+
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  runtime = "nodejs18.x"
+
+  environment {
+    variables = {
+      TABLE_NAME = aws_dynamodb_table.sensors_table.name
+      RECORD_TTL = var.dynamodb_item_ttl
+    }
+  }
+}
+
+
+# Role associated to Lambda function so that it can write to DynamoDB.
+
 resource "aws_iam_role" "sensors_table_writer" {
   name = "${var.table_basename}Writer-${var.random_suffix}"
 
@@ -55,7 +92,7 @@ resource "aws_iam_role" "sensors_table_writer" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          Service = "iot.amazonaws.com"
+          Service = "lambda.amazonaws.com"
         }
       },
     ]
@@ -71,6 +108,21 @@ resource "aws_iam_role_policy_attachment" "writer_policy_to_role" {
   policy_arn = aws_iam_policy.write_to_table.arn
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_execution_role_policy_to_role" {
+  role       = aws_iam_role.sensors_table_writer.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+
+# Permission configured in the Lambda function so that the IoT rule can invoke the function.
+
+resource "aws_lambda_permission" "allow_iot" {
+  statement_id  = "AllowExecutionFromIot"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.record_item.function_name
+  principal     = "iot.amazonaws.com"
+}
+
 
 ##################################
 # IoT message routing topic rule #
@@ -83,25 +135,9 @@ resource "aws_iot_topic_rule" "write_to_table" {
   sql         = var.topic_rule_sql_query
   sql_version = "2016-03-23"
 
-  dynamodb {
-    hash_key_field = "device"
-    hash_key_type  = "STRING"
-    # We get the device ID from MQTT topic as there is no way to get it from a SQL function.
-    hash_key_value = var.topic_rule_device_value
-
-    range_key_field = "timestamp"
-    range_key_type  = "NUMBER"
-    range_key_value = "$${timestamp()}"
-
-    payload_field = "payload"
-
-    operation = "INSERT"
-
-    role_arn = aws_iam_role.sensors_table_writer.arn
-
-    table_name = aws_dynamodb_table.sensors_table.name
+  lambda {
+    function_arn = aws_lambda_function.record_item.arn
   }
-
 
   # Log errors to S3.
   

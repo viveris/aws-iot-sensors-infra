@@ -9,3 +9,9 @@ variable "region" {
   type        = string
   default     = "eu-west-3"
 }
+
+variable "dynamodb_item_ttl" {
+  description = "TTL for items recorded in DynamoDB (s).  Items are moved to S3 after their TTL expires."
+  type        = number
+  default     = 2592000  # 30 days
+}

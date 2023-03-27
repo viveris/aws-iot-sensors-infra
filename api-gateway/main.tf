@@ -118,8 +118,8 @@ resource "aws_api_gateway_integration" "get_recent_device_motion_measurements" {
 
   request_templates = {
     "application/json" = <<EOF
-#set($now = $context.requestTimeEpoch)
-#set($start = $now - 300000)
+#set($now = $context.requestTimeEpoch / 1000)
+#set($start = $now - 300)
 {
     "TableName": "${var.motion_table_name}",
     "KeyConditionExpression": "device = :device AND #timestamp > :start",
