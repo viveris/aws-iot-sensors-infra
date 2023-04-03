@@ -16,17 +16,6 @@ This project creates a serverless architecture that ingests IoT sensors data fro
 Clone the repository and `cd` into it.
 
 
-=== Configure the Lambda functions
-
-IMPORTANT: The Lambda configuration requires to use Node.js 18.  You can use `nvm` to easily switch between Node versions.
-
-In each directory of directory _lambda_, run:
-
-....
-$ npm install
-....
-
-
 === Configure environment
 
 Create a _terraform.tfvars_ file at the root of the repository.  Edit it to alter the default configuration.  The list of variables can be found in _variables.tf_.

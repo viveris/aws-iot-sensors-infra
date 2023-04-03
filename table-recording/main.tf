@@ -91,11 +91,11 @@ resource "aws_lambda_function" "record_item" {
   filename      = data.archive_file.record_lambda.output_path
   function_name = "IotSensorsWriteMessageTo${var.table_basename}-${var.random_suffix}"
   role          = aws_iam_role.sensors_table_writer.arn
-  handler       = "index.handler"
+  handler       = "lambda_function.handler"
 
   source_code_hash = data.archive_file.record_lambda.output_base64sha256
 
-  runtime = "nodejs18.x"
+  runtime = "python3.9"
 
   environment {
     variables = {
