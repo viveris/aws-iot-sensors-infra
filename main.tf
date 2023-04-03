@@ -101,6 +101,9 @@ module "motion_table_recording" {
   dynamodb_item_ttl           = var.dynamodb_item_ttl
   logs_bucket_name            = aws_s3_bucket.logs.id
   iot_sensors_logger_role_arn = aws_iam_role.iot_sensors_logger.arn
+  dynamodb_stream_processing_lambda_batch_size = var.dynamodb_stream_processing_lambda_batch_size
+  firehose_buffer_size = var.firehose_buffer_size
+  firehose_buffer_interval = var.firehose_buffer_interval
 }
 
 

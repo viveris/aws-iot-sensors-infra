@@ -47,3 +47,18 @@ variable "iot_sensors_logger_role_arn" {
   description = "ARN of IAM role to assume in order to put logs in the logs bucket."
   type        = string
 }
+
+variable "dynamodb_stream_processing_lambda_batch_size" {
+  description = "Batch size (number of items) used to write items to the Firehose stream, when multiple records are received from DynamoDB by the Lambda function."
+  type        = number
+}
+
+variable "firehose_buffer_size" {
+  description = "Size of buffer (in MB) for the Firehose delivery stream.  When the data in the stream reaches this size, data is delivered to S3."
+  type        = number
+}
+
+variable "firehose_buffer_interval" {
+  description = "Buffer time interval (s) for the Firehose delivery stream.  The stream waits at most this time interval before delivering data to S3 (even if buffer size is not reached)."
+  type        = number
+}
