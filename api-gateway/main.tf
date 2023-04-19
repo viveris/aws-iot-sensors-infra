@@ -180,7 +180,11 @@ resource "aws_api_gateway_deployment" "v1" {
   rest_api_id = aws_api_gateway_rest_api.iot_sensors_api.id
 
   triggers = {
-    redeployment = sha1(file("${path.module}/main.tf"))
+    redeployment = sha1(jsonencode({
+      api_gateway = file("${path.module}/main.tf"),
+      motion_table_name = var.motion_table_name,
+      motion_table_arn = var.motion_table_arn,
+    }))
   }
 
   lifecycle {
