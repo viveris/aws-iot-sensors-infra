@@ -3,19 +3,21 @@
 #########################################################
 
 resource "aws_iam_policy" "allow_query_tables" {
-  name        = "IotSensorsQuery-${var.random_suffix}"
+  name        = "${var.project_name}-AllowQueryTables-${var.random_suffix}"
   description = "Allow to query IOT sensors DynamoDB tables."
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "VisualEditor0",
+        Sid    = "AllowQueryTables",
         Effect = "Allow",
         Action = [
           "dynamodb:Query"
         ],
-        Resource = var.motion_table_arn,
+        Resource = [
+          var.motion_table_arn,
+        ],
       }
     ]
   })
@@ -25,8 +27,8 @@ resource "aws_iam_policy" "allow_query_tables" {
   }
 }
 
-resource "aws_iam_role" "api_gateway_execution" {
-  name = "IotSensorsApiGatewayExecutionRole-${var.random_suffix}"
+resource "aws_iam_role" "api_gateway" {
+  name = "${var.project_name}-ApiGatewayRole-${var.random_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -46,8 +48,8 @@ resource "aws_iam_role" "api_gateway_execution" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "attach_allow_query_tables_to_api_gateway_execution" {
-  role       = aws_iam_role.api_gateway_execution.name
+resource "aws_iam_role_policy_attachment" "attach_allow_query_tables_policy_to_api_gateway" {
+  role       = aws_iam_role.api_gateway.name
   policy_arn = aws_iam_policy.allow_query_tables.arn
 }
 
@@ -57,7 +59,7 @@ resource "aws_iam_role_policy_attachment" "attach_allow_query_tables_to_api_gate
 ####################
 
 resource "aws_api_gateway_rest_api" "iot_sensors_api" {
-  name        = "IotSensorsApi-${var.random_suffix}"
+  name        = "${var.project_name}-${var.random_suffix}"
   description = "Proxy REST API to IOT Sensors DynamoDB tables."
   endpoint_configuration {
     types = ["REGIONAL"]
@@ -112,7 +114,7 @@ resource "aws_api_gateway_integration" "get_recent_device_motion_measurements" {
   http_method             = aws_api_gateway_method.get_recent_device_motion_measurements.http_method
   integration_http_method = "POST"
   type                    = "AWS"
-  credentials             = aws_iam_role.api_gateway_execution.arn
+  credentials             = aws_iam_role.api_gateway.arn
   uri                     = "arn:aws:apigateway:${var.region}:dynamodb:action/Query"
   passthrough_behavior = "WHEN_NO_TEMPLATES"
 
