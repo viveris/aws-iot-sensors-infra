@@ -35,12 +35,12 @@ module "motion_measurements_endpoint" {
   region        = var.region
   random_suffix = var.random_suffix
 
-  api_gateway_id                 = aws_api_gateway_rest_api.iot_sensors_api.id
-  api_gateway_root_resource_id   = aws_api_gateway_resource.measurements.id
-  table_name                     = each.value.table_name
-  table_basename                 = each.value.table_basename
-  table_arn                      = each.value.table_arn
-  measurements_group             = each.key
+  api_gateway_id               = aws_api_gateway_rest_api.iot_sensors_api.id
+  api_gateway_root_resource_id = aws_api_gateway_resource.measurements.id
+  table_name                   = each.value.table_name
+  table_basename               = each.value.table_basename
+  table_arn                    = each.value.table_arn
+  measurements_group           = each.key
 }
 
 
@@ -53,8 +53,8 @@ resource "aws_api_gateway_deployment" "v1" {
 
   triggers = {
     redeployment = sha1(jsonencode({
-      api_gateway = file("${path.module}/main.tf"),
-      api_gateway = file("${path.module}/../api-gateway-measurements-endpoint/main.tf"),
+      api_gateway         = file("${path.module}/main.tf"),
+      api_gateway         = file("${path.module}/../api-gateway-measurements-endpoint/main.tf"),
       measurements_groups = var.measurements_groups,
     }))
   }

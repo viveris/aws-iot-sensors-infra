@@ -13,7 +13,7 @@ variable "region" {
 variable "dynamodb_item_ttl" {
   description = "TTL for items recorded in DynamoDB (s).  Items are moved to S3 after their TTL expires."
   type        = number
-  default     = 2592000  # 30 days
+  default     = 2592000 # 30 days
 }
 
 variable "dynamodb_stream_processing_lambda_batch_size" {

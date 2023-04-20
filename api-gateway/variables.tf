@@ -33,5 +33,5 @@ variable "measurements_groups" {
 
   EOF
 
-  type        = map(map(any))
+  type = map(map(any))
 }

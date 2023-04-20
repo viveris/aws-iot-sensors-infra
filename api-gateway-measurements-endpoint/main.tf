@@ -94,7 +94,7 @@ resource "aws_api_gateway_integration" "get_recent_device_measurements" {
   type                    = "AWS"
   credentials             = aws_iam_role.api_gateway.arn
   uri                     = "arn:aws:apigateway:${var.region}:dynamodb:action/Query"
-  passthrough_behavior = "WHEN_NO_TEMPLATES"
+  passthrough_behavior    = "WHEN_NO_TEMPLATES"
 
   request_templates = {
     "application/json" = <<EOF
@@ -125,7 +125,7 @@ resource "aws_api_gateway_method_response" "get_recent_device_measurements_200" 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = true,
     "method.response.header.Access-Control-Allow-Methods" = true,
-    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
   }
 }
 
@@ -139,7 +139,7 @@ resource "aws_api_gateway_integration_response" "get_recent_device_measurements"
   http_method = aws_api_gateway_method.get_recent_device_measurements.http_method
   status_code = aws_api_gateway_method_response.get_recent_device_measurements_200.status_code
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin" = "'*'",
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'",
     "method.response.header.Access-Control-Allow-Methods" = "'GET'"
   }

@@ -3,12 +3,12 @@
 ########################################################
 
 resource "aws_dynamodb_table" "sensors_table" {
-  name         = "${var.project_name}-${var.table_basename}-${var.random_suffix}"
-  billing_mode = "PAY_PER_REQUEST"
+  name             = "${var.project_name}-${var.table_basename}-${var.random_suffix}"
+  billing_mode     = "PAY_PER_REQUEST"
   stream_enabled   = true
   stream_view_type = "OLD_IMAGE"
-  hash_key     = "device"
-  range_key    = "timestamp"
+  hash_key         = "device"
+  range_key        = "timestamp"
 
   attribute {
     name = "device"
@@ -83,7 +83,7 @@ resource "aws_iam_policy" "allow_stream_processing" {
 
 data "archive_file" "record_lambda" {
   type        = "zip"
-  source_dir = var.record_item_lambda_src_path
+  source_dir  = var.record_item_lambda_src_path
   output_path = "lambda_function_${var.table_basename}_record.zip"
 }
 
@@ -170,12 +170,12 @@ resource "aws_iot_topic_rule" "write_to_table" {
   }
 
   # Log errors to S3.
-  
+
   error_action {
     s3 {
       bucket_name = var.logs_bucket_name
-      key = "${var.project_name}-WriteTo${var.table_basename}Rule_${var.random_suffix}.log"
-      role_arn = var.iot_sensors_logger_role_arn
+      key         = "${var.project_name}-WriteTo${var.table_basename}Rule_${var.random_suffix}.log"
+      role_arn    = var.iot_sensors_logger_role_arn
     }
   }
 
@@ -260,7 +260,7 @@ resource "aws_kinesis_firehose_delivery_stream" "s3_stream" {
     role_arn   = aws_iam_role.firehose.arn
     bucket_arn = aws_s3_bucket.archive.arn
 
-    buffer_size = var.firehose_buffer_size
+    buffer_size     = var.firehose_buffer_size
     buffer_interval = var.firehose_buffer_interval
 
     prefix              = "data/!{timestamp:yyyy}/!{timestamp:MM}/!{timestamp:dd}/!{timestamp:HH}/"
@@ -303,7 +303,7 @@ resource "aws_iam_policy" "allow_put_to_stream" {
 
 data "archive_file" "archive_deleted_lambda" {
   type        = "zip"
-  source_dir = "./lambda/archive_deleted"
+  source_dir  = "./lambda/archive_deleted"
   output_path = "lambda_function_${var.table_basename}_archive_deleted.zip"
 }
 
@@ -320,7 +320,7 @@ resource "aws_lambda_function" "archive_deleted" {
   environment {
     variables = {
       FIREHOSE_NAME = aws_kinesis_firehose_delivery_stream.s3_stream.name
-      BATCH_SIZE = var.dynamodb_stream_processing_lambda_batch_size
+      BATCH_SIZE    = var.dynamodb_stream_processing_lambda_batch_size
     }
   }
 
@@ -380,9 +380,9 @@ resource "aws_lambda_permission" "allow_dynamodb" {
 # Lambda trigger
 
 resource "aws_lambda_event_source_mapping" "archive_deleted_on_sensors_table_stream_event" {
-  event_source_arn  = aws_dynamodb_table.sensors_table.stream_arn
-  function_name     = aws_lambda_function.archive_deleted.arn
-  starting_position = "LATEST"
-  batch_size = 10
+  event_source_arn                   = aws_dynamodb_table.sensors_table.stream_arn
+  function_name                      = aws_lambda_function.archive_deleted.arn
+  starting_position                  = "LATEST"
+  batch_size                         = 10
   maximum_batching_window_in_seconds = 0
 }
