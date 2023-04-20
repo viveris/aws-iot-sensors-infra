@@ -13,12 +13,25 @@ variable "random_suffix" {
   type        = string
 }
 
-variable "motion_table_name" {
-  description = "DynamoDB table name for motion sensors measurements."
-  type        = string
-}
+variable "measurements_groups" {
+  description = <<EOF
+    Measurements groups.
+    
+    Each key-value pair of the map corresponds to a measurements group and creates an API Gateway endpoint that allows
+    to query a specific DynamoDB table.
 
-variable "motion_table_arn" {
-  description = "ARN of DynamoDB table for motion sensors measurements."
-  type        = string
+    Format is the following:
+
+    {
+      <url_path_group_1> = {
+        table_name = <dynamodb_table_name_1>
+        table_basename = <dynamodb_table_basename_1>
+        table_arn = <dynamodb_table_base_arn_1>
+      },
+      ...
+    }
+
+  EOF
+
+  type        = map(map(any))
 }

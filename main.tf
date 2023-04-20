@@ -118,8 +118,13 @@ module "api_gateway" {
   region        = var.region
   random_suffix = random_id.env_id.hex
 
-  motion_table_name = module.motion_table_recording.sensors_table_name
-  motion_table_arn  = module.motion_table_recording.sensors_table_arn
+  measurements_groups = {
+    motion = {
+      table_name = module.motion_table_recording.sensors_table_name
+      table_basename = "Motion"
+      table_arn = module.motion_table_recording.sensors_table_arn
+    }
+  }
 }
 
 
