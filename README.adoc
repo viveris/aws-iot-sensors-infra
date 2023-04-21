@@ -1,14 +1,59 @@
 = aws-iot-sensors-infra
+:experimental:
 :source-highlighter: highlight.js
 :source-language: terraform
 
 
-Terraform IoC for the AWS IoT Sensors project.
+Terraform IaC for the AWS IoT Sensors project.
 
 
 == Overview
 
-This project creates a serverless architecture that ingests IoT sensors data from STM32 cards.  Data is processed by IoT Core, an IoT Rule and a Lambda function.  The Lambda function records data from motion sensors received on specific MQTT topics (`+/motion_sensor_data`, where `+` represents a device ID).  An API then allows to query over HTTPS the latest records for a device.  The API can be used by a static website, which can be deployed in an S3 Bucket provided by the infrastructure.
+This project creates a serverless architecture that ingests IoT sensors data from STM32 cards and publishes the data through a REST API.  Data is processed by IoT Core, an IoT Rule and a Lambda function that records messages to a DynamoDB table.  The IoT Rule processes data published to a specific MQTT topic, `+/motion_sensor_data`, where `+` represents the device ID.
+
+A REST API in API Gateway allows to query the database through HTTPS.  An empty S3 bucket is also configured as a static website, so that the aws-iot-sensors-front web app can be published to display real time graphs by querying the API.
+
+A DynamoDB stream, a Lambda function and a Kinesis Data Firehose are used to archive old DynamoDB items in a S3 bucket.  This uses DynamoDB's TTL feature.
+
+The project is written with reusable modules and makes it easy to extend the architecture to record, publish and archive messages from other types of sensors of the STM32 cards, such as the environment sensors (temperature, humidity...).
+
+
+== Architecture diagram
+
+.Architecture in the AWS cloud.  The cloud infrastructure is entirely serverless.
+image::docs/architecture.png[]
+
+
+== Requirements
+
+* Git LFS
+* Terraform
+* An AWS account
+* The https://aws.amazon.com/cli/[AWS CLI]
+* A STM32 card that sends, over WiFi, MQTT messages to a `{device_id}/motion_sensor_data` topic.  The project was tested with a B-U585I-IOT02A card that just needed to be configured to connect to a WiFi network (beware of firewalls!) and registered in AWS IoT.  Both steps can be done using the _tools/provision.py_ script in the https://github.com/FreeRTOS/iot-reference-stm32u5[IoT Reference STM32U5] project.
+
+To test the STM32 card configuration, navigate, in the IoT Core AWS service, to menu:Test[MQTT test client > Subscribe to a topic], and subscribe to `+/motion_sensor_data`.  This should display within a fraction of a second messages similar to this:
+
+[source,json]
+----
+{
+  "acceleration_mG": {
+    "x": 1,
+    "y": -1,
+    "z": 1009
+  },
+  "gyro_mDPS": {
+    "x": 140,
+    "y": -210,
+    "z": -560
+  },
+  "magnetometer_mGauss": {
+    "x": 117,
+    "y": 229,
+    "z": -13
+  }
+}
+----
 
 
 == Usage
@@ -16,19 +61,18 @@ This project creates a serverless architecture that ingests IoT sensors data fro
 Clone the repository and `cd` into it.
 
 
-=== Configure environment
+=== Configure the environment
 
 Create a _terraform.tfvars_ file at the root of the repository.  Edit it to alter the default configuration.  The list of variables can be found in _variables.tf_.
 
 For example, to change the items TTL in DynamoDB to seven days, add this line to _terraform.tfvars_:
 
-[source,tf]
-----
+....
 dynamodb_item_ttl = 604800
-----
+....
 
 
-=== Deployment
+=== Terraform deployment
 
 To deploy the resources, execute:
 
@@ -37,7 +81,7 @@ $ terraform init
 $ terraform apply
 ....
 
-Type "yes" when you are asked to accept the solution.
+Type "yes" when asked to accept the solution.  The command prints useful information such as the API and Web URLs.
 
 NOTE: The command above only works if you have already configured your AWS CLI with `aws configure`.
 
@@ -49,9 +93,78 @@ $ terraform destroy
 
 TIP: The architecture may induce small storage, data ingestion and retrieval costs.  It is good to destroy all resources when they are not needed anymore.
 
-TIP: In case of errors relted to non-empty buckets, you can delete the data in the buckets (`aws s3 rm --recursive s3://BUCKET_NAME`) and run `terraform destroy` again.
+TIP: In case of errors related to non-empty buckets, you can delete the data in the buckets (`aws s3 rm --recursive s3://BUCKET_NAME`) and run `terraform destroy` again.
 
 
 === Next steps
 
-This architecture comprises an S3 Bucket that can hold a static website.  You may want to upload static files in this bucket for a front app that queries the API.
+==== Release an API version
+
+The deployment of the API Gateway REST API is not managed by this Terraform project.  After initial deployment or changes to the architecture, run the command provided in the `deploy_command` output variable that is printed by `terraform apply` or `terraform output`.
+
+If everything went well, querying the `/v1/measurements/motion/{device_id}/recent` URL should return data that looks like this:
+
+[source,json]
+----
+{
+  "Count": 604,
+  "Items": [
+    {
+      "payload": {
+        "M": {
+          "acceleration_mG_z": {
+            "N": "1009"
+          },
+          "magnetometer_mGauss_x": {
+            "N": "115"
+          },
+          "gyro_mDPS_x": {
+            "N": "140"
+          },
+          "magnetometer_mGauss_y": {
+            "N": "225"
+          },
+          "acceleration_mG_x": {
+            "N": "1"
+          },
+          "gyro_mDPS_y": {
+            "N": "-210"
+          },
+          "magnetometer_mGauss_z": {
+            "N": "-13"
+          },
+          "acceleration_mG_y": {
+            "N": "-1"
+          },
+          "gyro_mDPS_z": {
+            "N": "-490"
+          }
+        }
+      },
+      "ttl": {
+        "N": "1682092119.359"
+      },
+      "device": {
+        "S": "stm32_1"
+      },
+      "timestamp": {
+        "N": "1682092089.359"
+      }
+    },
+    ...
+  ],
+  "ScannedCount": 604
+}
+----
+
+
+==== Deploy the static website
+
+The architecture comprises an S3 Bucket that can hold a static website.  You may want to upload static files in this bucket for a front app, such as aws-iot-sensors-front, that queries the API.
+
+
+== Exercise
+
+By default, the STM32 cards publish MQTT messages to `+/env_sensor_data` topics, with temperature and other data, in addition to `+/motion_sensor_data`.  Also, the aws-iot-sensors-front companion project has a page that displays graphs from temperature sensors.  But it currently queries an API URL that does not exist!
+
+Try to modify aws-iot-sensors-infra to record the temperature data and add the missing API endpoint that returns the recent temperature records.  Then, deploy the changes by running `terraform apply`.
