@@ -83,8 +83,8 @@ resource "aws_iam_policy" "allow_stream_processing" {
 
 data "archive_file" "record_lambda" {
   type        = "zip"
-  source_dir  = var.record_item_lambda_src_path
-  output_path = "lambda_function_${var.table_basename}_record.zip"
+  source_dir  = "${path.module}/files/record_data"
+  output_path = "${path.module}/record_data_${var.table_basename}.zip"
 }
 
 resource "aws_lambda_function" "record_item" {
@@ -303,8 +303,8 @@ resource "aws_iam_policy" "allow_put_to_stream" {
 
 data "archive_file" "archive_deleted_lambda" {
   type        = "zip"
-  source_dir  = "./lambda/archive_deleted"
-  output_path = "lambda_function_${var.table_basename}_archive_deleted.zip"
+  source_dir  = "${path.module}/files/archive_deleted"
+  output_path = "${path.module}/files/archive_deleted_${var.table_basename}.zip"
 }
 
 resource "aws_lambda_function" "archive_deleted" {

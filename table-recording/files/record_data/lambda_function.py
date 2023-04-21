@@ -5,6 +5,7 @@ import os
 import boto3
 
 
+
 table_name = os.environ['TABLE_NAME']
 record_ttl = float(os.environ['RECORD_TTL'])
 
