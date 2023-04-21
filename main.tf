@@ -15,6 +15,8 @@ provider "aws" {
   region = var.region
 }
 
+data "aws_region" "current" {}
+
 resource "random_id" "env_id" {
   byte_length = 4
 }

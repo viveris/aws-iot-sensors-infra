@@ -22,11 +22,11 @@ resource "aws_api_gateway_resource" "measurements" {
 }
 
 
-#############################
-# Motion measurements group #
-#############################
+######################
+# Measurements group #
+######################
 
-module "motion_measurements_endpoint" {
+module "measurements_endpoint" {
   for_each = var.measurements_groups
 
   source = "../api-gateway-measurements-endpoint"
@@ -41,31 +41,4 @@ module "motion_measurements_endpoint" {
   table_basename               = each.value.table_basename
   table_arn                    = each.value.table_arn
   measurements_group           = each.key
-}
-
-
-##############
-# Deployment #
-##############
-
-resource "aws_api_gateway_deployment" "v1" {
-  rest_api_id = aws_api_gateway_rest_api.iot_sensors_api.id
-
-  triggers = {
-    redeployment = sha1(jsonencode({
-      api_gateway         = file("${path.module}/main.tf"),
-      api_gateway         = file("${path.module}/../api-gateway-measurements-endpoint/main.tf"),
-      measurements_groups = var.measurements_groups,
-    }))
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_api_gateway_stage" "v1" {
-  deployment_id = aws_api_gateway_deployment.v1.id
-  rest_api_id   = aws_api_gateway_rest_api.iot_sensors_api.id
-  stage_name    = "v1"
 }
