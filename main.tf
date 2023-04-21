@@ -97,7 +97,21 @@ module "motion_table_recording" {
   random_suffix = random_id.env_id.hex
 
   table_basename                               = "Motion"
-  topic_rule_sql_query                         = "SELECT topic(1) as device_id, timestamp() as timestamp, acceleration_mG.x as payload.acceleration_mG_x, acceleration_mG.y as payload.acceleration_mG_y, acceleration_mG.z as payload.acceleration_mG_z, gyro_mDPS.x as payload.gyro_mDPS_x, gyro_mDPS.y as payload.gyro_mDPS_y, gyro_mDPS.z as payload.gyro_mDPS_z, magnetometer_mGauss.x as payload.magnetometer_mGauss_x, magnetometer_mGauss.y as payload.magnetometer_mGauss_y, magnetometer_mGauss.z as payload.magnetometer_mGauss_z FROM '+/motion_sensor_data'"
+  topic_rule_sql_query                         = <<EOF
+    SELECT
+      topic(1) as device_id,
+      timestamp() as timestamp,
+      acceleration_mG.x as payload.acceleration_mG_x,
+      acceleration_mG.y as payload.acceleration_mG_y,
+      acceleration_mG.z as payload.acceleration_mG_z,
+      gyro_mDPS.x as payload.gyro_mDPS_x,
+      gyro_mDPS.y as payload.gyro_mDPS_y,
+      gyro_mDPS.z as payload.gyro_mDPS_z,
+      magnetometer_mGauss.x as payload.magnetometer_mGauss_x,
+      magnetometer_mGauss.y as payload.magnetometer_mGauss_y,
+      magnetometer_mGauss.z as payload.magnetometer_mGauss_z
+    FROM '+/motion_sensor_data'
+  EOF
   topic_rule_device_value                      = "$${topic(1)}"
   dynamodb_item_ttl                            = var.dynamodb_item_ttl
   logs_bucket_name                             = aws_s3_bucket.logs.id
