@@ -88,7 +88,7 @@ resource "aws_iam_role_policy_attachment" "attach_allow_write_logs_policy_to_iot
 ###############################################################
 
 module "motion_table_recording" {
-  source = "./table-recording"
+  source = "./modules/table-recording"
 
   project_name  = var.project_name
   region        = var.region
@@ -111,7 +111,7 @@ module "motion_table_recording" {
 ###############
 
 module "api_gateway" {
-  source = "./api-gateway"
+  source = "./modules/api-gateway"
 
   project_name  = var.project_name
   region        = var.region
@@ -132,7 +132,7 @@ module "api_gateway" {
 #########################
 
 module "static_web" {
-  source = "./static-web"
+  source = "./modules/static-web"
 
   project_name  = var.project_name
   region        = var.region

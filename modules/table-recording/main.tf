@@ -84,7 +84,7 @@ resource "aws_iam_policy" "allow_stream_processing" {
 data "archive_file" "record_lambda" {
   type        = "zip"
   source_dir  = "${path.module}/files/record_data"
-  output_path = "${path.module}/record_data_${var.table_basename}.zip"
+  output_path = "${path.module}/files/record_data_${var.table_basename}.zip"
 }
 
 resource "aws_lambda_function" "record_item" {

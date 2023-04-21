@@ -4,7 +4,5 @@
 /terraform.tfstate
 /terraform.tfstate.backup
 /.terraform.tfstate.lock.info
-/table-recording/files/archive_deleted_*.zip
-/table-recording/files/record_data_*.zip
-/lambda/*/node_modules/
-*.zip
+/modules/table-recording/files/archive_deleted_*.zip
+/modules/table-recording/files/record_data_*.zip
