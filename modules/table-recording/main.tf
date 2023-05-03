@@ -95,6 +95,7 @@ resource "aws_lambda_function" "record_item" {
 
   source_code_hash = data.archive_file.record_lambda.output_base64sha256
 
+  architectures = ["arm64"]
   runtime = "python3.10"
 
   environment {
@@ -315,6 +316,7 @@ resource "aws_lambda_function" "archive_deleted" {
 
   source_code_hash = data.archive_file.archive_deleted_lambda.output_base64sha256
 
+  architectures = ["arm64"]
   runtime = "python3.10"
 
   environment {

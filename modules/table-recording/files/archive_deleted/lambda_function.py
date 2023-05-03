@@ -4,6 +4,11 @@ import os
 import boto3
 
 
+firehose_client = boto3.client('firehose')
+firehose_name = os.environ['FIREHOSE_NAME']
+batch_size = int(os.environ['BATCH_SIZE'])
+
+
 def handler(event, context):
     removed_items = []
     print("Received %d records." % len(event['Records']))
@@ -21,10 +26,6 @@ def put_items_to_firehose(items):
 
     if n_items == 0:
         return
-    
-    firehose_client = boto3.client('firehose')
-    firehose_name = os.environ['FIREHOSE_NAME']
-    batch_size = int(os.environ['BATCH_SIZE'])
     
     batches = [items[i*batch_size:(i+1)*batch_size] for i in range((len(items)-1) // batch_size + 1)] 
     n_failures = 0
