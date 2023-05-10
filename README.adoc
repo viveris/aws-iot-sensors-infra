@@ -11,9 +11,9 @@ Terraform IaC for the AWS IoT Sensors project.
 
 This project creates a serverless architecture that ingests IoT sensors data from STM32 cards and publishes the data through a REST API.  Data is processed by IoT Core, an IoT Rule and a Lambda function that records messages to a DynamoDB table.  The IoT Rule processes data published to a specific MQTT topic, `+/motion_sensor_data`, where `+` represents the device ID.
 
-A REST API in API Gateway allows to query the database through HTTPS.  An empty S3 bucket is also configured as a static website, so that the aws-iot-sensors-front web app can be published to display real time graphs by querying the API.
+A REST API in API Gateway allows to query the database through HTTPS.  An empty S3 bucket is also configured as a static website, so that the https://github.com/viveris/aws-iot-sensors-front/[aws-iot-sensors-front] web app can be published and display real time graphs by querying the API.
 
-A DynamoDB stream, a Lambda function and a Kinesis Data Firehose are used to archive old DynamoDB items in a S3 bucket.  This uses DynamoDB's TTL feature.
+A DynamoDB stream, a Lambda function and a Kinesis Data Firehose are used to archive old DynamoDB items in a S3 bucket.  This uses https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html[DynamoDB's TTL feature].
 
 The project is written with reusable modules and makes it easy to extend the architecture to record, publish and archive messages from other types of sensors of the STM32 cards, such as the environment sensors (temperature, humidity...).
 
@@ -26,13 +26,99 @@ image::docs/architecture.png[]
 
 == Requirements
 
+You will need these tools:
+
 * Git LFS
 * Terraform
+
+In addition, follow the steps in the sections below to configure:
+
 * An AWS account
 * The https://aws.amazon.com/cli/[AWS CLI]
-* A STM32 card that sends, over WiFi, MQTT messages to a `{device_id}/motion_sensor_data` topic.  The project was tested with a B-U585I-IOT02A card that just needed to be configured to connect to a WiFi network (beware of firewalls!) and registered in AWS IoT.  Both steps can be done using the _tools/provision.py_ script in the https://github.com/FreeRTOS/iot-reference-stm32u5[IoT Reference STM32U5] project.
+* An STM32 card that sends, over WiFi, MQTT messages to a `{device_id}/motion_sensor_data` topic.  The project was tested with a https://www.st.com/en/evaluation-tools/b-u585i-iot02a.html[B-U585I-IOT02A] card.
 
-To test the STM32 card configuration, navigate, in the IoT Core AWS service, to menu:Test[MQTT test client > Subscribe to a topic], and subscribe to `+/motion_sensor_data`.  This should display within a fraction of a second messages similar to this:
+All instructions in this document were tested on Ubuntu 22.04.
+
+
+=== Open an AWS account
+
+Sign up for an AWS account at https://aws.amazon.com/free/.  You will need to provide a credit card number.  This creates your root user.
+
+
+=== Install and configure the AWS CLI
+
+Follow https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html[these steps] to install the AWS CLI.
+
+Once installed, you need to configure the CLI to use your AWS account.  For this, we will create a non-root user with administrator access, create an API key and configure the CLI to use that API key.
+
+. Sign in to your AWS account at https://aws.amazon.com/ with your root user email and password.
+. In the search bar at the top, search for "IAM" (Identity and Access Management).  Click on IAM.
+. In the left pane of the IAM console, navigate to menu:Access management[Users] and click on btn:[Add users].  In the form, choose a username, check the "Provide user access to the AWS Management Console" box, then "I want to create an IAM user".  Choose a password and click btn:[Next].  For the permissions, choose "Attach policies directly". Search for the _AdministratorAccess_ policy, select it and click btn:[Next].  In the next window, click btn:[Create user].
+. Go back to the users list in menu:Access management[Users], click on the new user, open the "Security credentials" tab and click the btn:[Create access key] button.  In the new window, select "Command Line Interface (CLI)", tick the "I understand [...]" box and click btn:[Next].  Click btn:[Create access key].  Take note of the generated access key and secret access key.
+. In a terminal, type `aws configure`.  When prompted, provide the access key and the secret access key.  For the default region, type `eu-west-3`.  For the default output format, you can keep the default value.
+
+To test that the CLI can make API calls to AWS and access your account, you can run a test command such as the one below, which returns details on your account and current user:
+
+....
+$ aws sts get-caller-identity
+{
+    "UserId": "AI?????????????????5N",
+    "Account": "12????????89",
+    "Arn": "arn:aws:iam::12????????89:user/nicolas"
+}
+....
+
+
+=== Configure the STM32 card to send data to AWS IoT Core
+
+In its default configuration, a B-U585I-IOT02A card is capable of sending MQTT messages to an AWS IoT endpoint, simply by configuring it to connect to your AWS account.  This is done by running an ST-provided script with the card plugged to a computer with USB.  The script interacts with the card through a serial communication.
+
+. Add your UNIX account to the _dialout_ group in order to be able to use serial ports:
+.. Add yourself to the group (adapt the username):
++
+....
+$ sudo addgroup nicolas dialout
+....
+.. Reboot your computer.  You can check you are in the _dialout_ group by listing your groups with the `groups` command.
+
+. Clone the https://github.com/FreeRTOS/iot-reference-stm32u5[FreeRTOS iot-reference-stm32u5] project:
++
+....
+git clone https://github.com/FreeRTOS/iot-reference-stm32u5.git
+....
+. Configure a Python environment:
++
+....
+$ cd iot-reference-stm32u5/tools
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+(.venv)$ pip install -r requirements.txt
+....
+. Configure the STM32 card:
+.. Plug the card with a USB cable to the computer.
+.. Execute the _provision.py_ script.  This script configures the card to connect to a WiFi network, and registers the card in your AWS account.  The registration involves telling the card what your IoT endpoint (URL) is, registering the device as an AWS IoT Thing in your account, and generating an SSL certificate so that the card has the private key and your AWS account has the public certificate that AWS will use to authenticate and identify your card as a certain device.
++
+....
+(.venv)$ python provision.py --aws-profile default --thing-name stm32_1 --wifi-ssid SSID --wifi-credential WIFI_PASSWORD
+....
++
+In the command above, replace `SSID` and `WIFI_PASSWORD` by your WiFi network parameters.  The output for a successful registration looks like:
++
+....
+Target device path: /dev/ttyACM0
+Connecting to target...
+[ INFO ] Found credentials in shared credentials file: ~/.aws/credentials (credentials.py:load)
+Commiting target configuration...
+Generating a new public/private key pair
+Generating a self-signed Certificate
+Attaching thing: stm32_1 to principal: arn:aws:iot:eu-west-3:12????????89:cert/2b????????????????????????????????????????????????????????????0d
+[ INFO ] Existing policy "AllowAllDev" was not found. Creating it... (provision.py:create_policy)
+Attaching the "AllowAllDev" policy to the device certificate.
+Importing root ca certificate: "Starfield Services Root Certificate Authority - G2"
+Provisioning process complete. Resetting target device...
+....
+
+To test the STM32 card configuration, navigate, in your AWS account, to the IoT Core AWS service using the top search bar, then to menu:Test[MQTT test client > Subscribe to a topic], and subscribe to `+/motion_sensor_data`.  This should display within a fraction of a second JSON messages such as this one:
 
 [source,json]
 ----
@@ -55,10 +141,14 @@ To test the STM32 card configuration, navigate, in the IoT Core AWS service, to 
 }
 ----
 
+TIP: You can now unplug the card.  Plugging it again to any computer or even just to a power source will start sending data to AWS IoT Core.
+
+WARNING: When reconfiguring a previously configured card with the _provision.py_ script, errors may occur if the card is still connected over WiFi.  A solution to this is to turn off the WiFi network before running the script.
+
 
 == Usage
 
-Clone the repository and `cd` into it.
+Clone the aws-iot-sensors-infra repository and `cd` into it.
 
 
 === Configure the environment
@@ -160,11 +250,11 @@ If everything went well, querying the `/v1/measurements/motion/{device_id}/recen
 
 ==== Deploy the static website
 
-The architecture comprises an S3 Bucket that can hold a static website.  You may want to upload static files in this bucket for a front app, such as aws-iot-sensors-front, that queries the API.
+The architecture comprises an S3 Bucket that can hold a static website.  You may want to upload static files in this bucket for a front app that queries the API.  You can use the demo such as aws-iot-sensors-front project to generate such a site.  See https://github.com/viveris/aws-iot-sensors-front/[aws-iot-sensors-front]'s documentation for more details.
 
 
 == Exercise
 
-By default, the STM32 cards publish MQTT messages to `+/env_sensor_data` topics, with temperature and other data, in addition to `+/motion_sensor_data`.  Also, the aws-iot-sensors-front companion project has a page that displays graphs from temperature sensors.  But it currently queries an API URL that does not exist!
+By default, the STM32 cards publish MQTT messages to `+/env_sensor_data` topics, with temperature and other data, in addition to `+/motion_sensor_data`.  Also, the https://github.com/viveris/aws-iot-sensors-front/[aws-iot-sensors-front] companion project has a page that displays graphs from temperature sensors.  But it currently queries an API URL that does not exist!
 
 Try to modify aws-iot-sensors-infra to record the temperature data and add the missing API endpoint that returns the recent temperature records.  Then, deploy the changes by running `terraform apply`.
