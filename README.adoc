@@ -257,4 +257,4 @@ The architecture comprises an S3 Bucket that can hold a static website.  You may
 
 By default, the STM32 cards publish MQTT messages to `+/env_sensor_data` topics, with temperature and other data, in addition to `+/motion_sensor_data`.  Also, the https://github.com/viveris/aws-iot-sensors-front/[aws-iot-sensors-front] companion project has a page that displays graphs from temperature sensors.  But it currently queries an API URL that does not exist!
 
-Try to modify aws-iot-sensors-infra to record the temperature data and add the missing API endpoint that returns the recent temperature records.  Then, deploy the changes by running `terraform apply`.
+Try to modify aws-iot-sensors-infra to record the temperature data and add the missing API endpoint that returns the recent temperature records.  Then, deploy the changes by running `terraform init` and `terraform apply`, and then by deploying an API Gateway stage.
